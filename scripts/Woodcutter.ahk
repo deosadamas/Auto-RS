@@ -1,8 +1,9 @@
 #Requires AutoHotkey v2.0
 
-; Finds a tree by color in the viewport, clicks it, waits while chopping, and
-; shift-drops logs when the inventory fills. Tune [Woodcutter] in config.ini.
-; Tip: use RuneLite's Object Markers plugin to outline trees in a solid unique color
+; Finds a tree by color in the viewport, clicks it, waits while chopping, and drops
+; logs when the inventory fills (shift-drop on OSRS, right-click menu on RS3 - see
+; [Inventory] DropMode). Tune [Woodcutter] in the active config.
+; OSRS tip: use RuneLite's Object Markers plugin to outline trees in a solid unique color
 ; and set TreeColor to that color - far more reliable than natural tree pixels.
 class Woodcutter {
     static Name := "Woodcutter"

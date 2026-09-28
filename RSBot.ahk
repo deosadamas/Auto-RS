@@ -18,12 +18,8 @@ CoordMode "Pixel", "Client"
 Bot.Register(Woodcutter)
 Bot.Register(AutoClicker)
 
-Bot.cfg := Config(A_ScriptDir "\config.ini")
-Screen.title := Bot.cfg.Get("General", "WindowTitle", "ahk_exe RuneLite.exe")
-Logger.file := A_ScriptDir "\" Bot.cfg.Get("General", "LogFile", "bot.log")
-AntiBan.Configure(Bot.cfg)
-
 App.Build()
+App.LoadConfig(A_ScriptDir "\config.ini")
 
 F1:: App.Toggle()
 F2:: Bot.Stop()
@@ -34,14 +30,34 @@ class App {
     static status := ""
     static logBox := ""
     static ddl := ""
+    static cfgDdl := ""
+
+    ; (Re)load a config profile. Anything read at startup lives here so switching
+    ; profiles in the GUI takes full effect; scripts read Bot.cfg in Setup().
+    static LoadConfig(path) {
+        Bot.cfg := Config(path)
+        Screen.title := Bot.cfg.Get("General", "WindowTitle", "ahk_exe RuneLite.exe")
+        Logger.file := A_ScriptDir "\" Bot.cfg.Get("General", "LogFile", "bot.log")
+        AntiBan.Configure(Bot.cfg)
+        Logger.Info("Config: " path ". Window: " Screen.title (Screen.Exists() ? " (found)" : " (NOT FOUND)"))
+    }
 
     static Build() {
         names := []
         for name in Bot.scripts
             names.Push(name)
+        profiles := [], chosen := 1
+        loop files A_ScriptDir "\*.ini" {
+            profiles.Push(A_LoopFileName)
+            if (A_LoopFileName = "config.ini")
+                chosen := profiles.Length
+        }
 
         g := Gui("+AlwaysOnTop", "Auto-RS")
         g.SetFont("s9", "Segoe UI")
+        g.Add("Text", "xm", "Config:")
+        App.cfgDdl := g.Add("DropDownList", "x+8 yp-3 w200 Choose" chosen, profiles)
+        App.cfgDdl.OnEvent("Change", (*) => App.SwitchConfig())
         g.Add("Text", "xm", "Script:")
         App.ddl := g.Add("DropDownList", "x+8 yp-3 w200 Choose1", names)
         g.Add("Button", "xm w88", "Start/Pause F1").OnEvent("Click", (*) => App.Toggle())
@@ -55,14 +71,30 @@ class App {
 
         Logger.sink := (line) => App.AppendLog(line)
         Bot.onStatus := (msg) => (App.status.Text := msg)
-        Logger.Info("Ready. Window: " Screen.title (Screen.Exists() ? " (found)" : " (NOT FOUND)"))
     }
 
+    static SwitchConfig() {
+        if Bot.running {
+            Logger.Warn("Stop the bot before switching config")
+            return
+        }
+        try App.LoadConfig(A_ScriptDir "\" App.cfgDdl.Text)
+        catch Error as e
+            Logger.Error(e.Message)
+    }
+
+    ; Reload the profile on every start so ini edits apply without restarting.
     static Toggle() {
-        if Bot.running
+        if Bot.running {
             Bot.TogglePause()
-        else
-            Bot.Start(App.ddl.Text)
+            return
+        }
+        try App.LoadConfig(A_ScriptDir "\" App.cfgDdl.Text)
+        catch Error as e {
+            Logger.Error(e.Message)
+            return
+        }
+        Bot.Start(App.ddl.Text)
     }
 
     static AppendLog(line) {
